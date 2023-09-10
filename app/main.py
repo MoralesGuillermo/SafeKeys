@@ -5,8 +5,9 @@ import app as myApp
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    # TODO: LOGIC
-    safekeys = myApp.App()
-    safekeys.main_window()
+    app.setApplicationName("Safekeys")
+
+    safekeys = myApp.MainWindow()
+
     sys.exit(app.exec_())
 
