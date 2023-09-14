@@ -18,6 +18,7 @@ class FileManager:
     @staticmethod
     def write_file(path: str, content: str) -> bool:
         """"Write a file with the given content"""
+        # Make the missing directories
         try:
             with open(path, "w") as file:
                 file.write(content)
