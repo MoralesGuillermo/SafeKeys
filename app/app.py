@@ -1,13 +1,15 @@
 """App class for the logic of the app"""
+import os
 import sys
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QLineEdit, QLabel, QDialog, QShortcut
 from PyQt5.QtGui import QFont, QFontDatabase, QKeyEvent, QKeySequence
 from PyQt5.QtCore import Qt
-from filemanager import FileManager
-import re
+
+import HotkeyDAO as HD
 
 
 # Color palette: https://colors.muz.li/palette/361d32/543c52/f55951/edd2cb/f1e8e6
+filepath = os.path.join(os.getcwd(), "elem", "hk.csv")
 
 
 class Font(QFont):
@@ -90,19 +92,20 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.secondary_window = None
-        self.custom_key = FileManager.read_content("./elem/hk.txt") # TODO: MAKE DAO
+        file_dao = HD.HotkeyDAO(filepath)
+        file_dao.read_file()
+        self.custom_key = file_dao.key
         self.hidden = False
         self.hotkey_label = None
         if self.custom_key is None:
             self.custom_key = str()
             self.custom_key_window()
-        self.hotkeys = {  # TODO: ADD FUNCTIONALITIES TO THE HOTKEYS
+        self.hotkeys = {  # TODO: ADD FUNCTIONALITIES TO THE HOTKEYS/DEFINE QKEYSEQUENCE INSTANCES
             "<ctrl>+<alt>+c": None,
             "<ctrl>+<alt>+b": None,
             "<ctrl>+<alt>+u": None,
-            self.custom_key: None,
+            "custom": None,
         }
-        # self.listener = daemon.Daemon(self.hotkeys, None) # TODO: DEFINE on_move FUNC
         self.__init_ui()
         if self.hidden:
             self.hidden = False
@@ -145,37 +148,19 @@ class MainWindow(QMainWindow):
         self.hidden = True
         self.secondary_window = ChangeHotKey(self)
 
-    def read_hotkey(self):
-        """Read the current saved hotkey"""
-        font_style = {
-            "color": "#f55951",
-        }
-        # Stylesheets
-        label_stylesheet = QtStyleSheet.to_string(font_style)
-        content_font = Font("Roboto-Regular", 16, True, 200)
-        # Clean Hotkey Label
-        self.hotkey_label = None
-        self.custom_key = FileManager.read_content("./elem/hk.txt")
-        if self.custom_key is None:
-            # Set default hotkey instead
-            self.custom_key = "ctrl + alt + v"  # TODO: DEFINE DEFAULT HOTKEY
-            self.hotkey_label = Label(f"Hotkey: DEFAULT",
-                                      label_stylesheet,
-                                      content_font,
-                                      self,
-                                      25,
-                                      300)
-        else:
-            self.hotkey_label = Label(f"Hotkey: CUSTOM",
-                                      label_stylesheet,
-                                      content_font,
-                                      self,
-                                      25,
-                                      300)
-
-    def get_hotkey(self):
+    def get_custom_key(self):
         """Return the current hotkey"""
         return self.custom_key
+
+    def set_custom_key(self, value):
+        """ Set the custom key"""
+        self.custom_key = value
+        self.hotkeys["custom"] = self.custom_key    # TODO: LINK BLOCK FUNCTION TO HOTKEY
+        self.__apply_hotkey()
+
+    def __apply_hotkey(self):
+        """Make all the changes for the new hotkey"""
+        pass    # TODO: IMPLEMENT METHOD
 
 
 class ChangeHotKey(QWidget):
@@ -271,9 +256,12 @@ class ChangeHotKey(QWidget):
                 self.dialog.show()
             elif key_val == Qt.Key_Return and self.new_key != "":
                 # Set the new hotkey
-                pass  # TODO: Write the new hotkey to the file
+                # Write the hotkey to the model
+                file_dao = HD.HotkeyDAO(filepath)
+                file_dao.write_file(self.new_key)
+                # Change the hotkey in the main window
+                self.main.set_custom_key(self.key_value)
                 self.close()
-                self.main.read_hotkey()
                 self.main.show()
             elif key_val == Qt.Key_Escape:
                 # Return to the main window
