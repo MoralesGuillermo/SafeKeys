@@ -11,6 +11,11 @@ import HotkeyDAO as HD
 # Color palette: https://colors.muz.li/palette/361d32/543c52/f55951/edd2cb/f1e8e6
 filepath = os.path.join(os.getcwd(), "elem", "hk.csv")
 
+# Default Key Sequence
+change_key = Qt.CTRL+Qt.ALT+Qt.Key_C
+about_us = Qt.CTRL + Qt.ALT + Qt.Key_U
+check_key = Qt.CTRL + Qt.ALT + Qt.Key_B
+
 
 class Font(QFont):
     def __init__(self, font_name: str, size: int, custom_font: bool = False, weight: int = None):
@@ -90,6 +95,7 @@ class Label(QLabel):
 
 class MainWindow(QMainWindow):
     def __init__(self):
+        global change_key, about_us, check_key
         super().__init__()
         self.secondary_window = None
         file_dao = HD.HotkeyDAO(filepath)
@@ -98,18 +104,27 @@ class MainWindow(QMainWindow):
         self.hidden = False
         self.hotkey_label = None
         if self.custom_key is None:
+            self.hidden = True
             self.custom_key = str()
             self.custom_key_window()
-        self.hotkeys = {  # TODO: ADD FUNCTIONALITIES TO THE HOTKEYS/DEFINE QKEYSEQUENCE INSTANCES
-            "<ctrl>+<alt>+c": None,
-            "<ctrl>+<alt>+b": None,
-            "<ctrl>+<alt>+u": None,
-            "custom": None,
-        }
+
+        # Activate shortcuts
+        self.change_key_hotkey = QShortcut(QKeySequence(change_key), self)
+        self.change_key_hotkey.activated.connect(self.custom_key_window)
+
+        self.about_us_hotkey = QShortcut(QKeySequence(about_us), self)
+        self.about_us_hotkey.activated.connect(self.about_us_window)
+
+        self.check_key_hotkey = QShortcut(QKeySequence(check_key), self)
+        self.check_key_hotkey.activated.connect(self.check_key_window)
+
+        self.custom_key_hotkey = QShortcut(QKeySequence(self.custom_key), self)
+        self.custom_key_hotkey.activated.connect(self.safemode)
+        # Initialize the UI
         self.__init_ui()
         if self.hidden:
-            self.hidden = False
             self.hide()
+            self.hidden = False
 
     def __init_ui(self):
         """Main window's UI"""
@@ -132,20 +147,15 @@ class MainWindow(QMainWindow):
 
         # Set the labels
         title = Label("SafeKeys", label_stylesheet, title_font, self, 25, 15)
-        self.hotkey_label = Label(f"Hotkey: CUSTOM", label_stylesheet, content_font, self, 25,
-                       300)  # TODO: ADD CUSTOM HOTKEY MESSAGE
+        self.hotkey_label = Label(f"Hotkey: CUSTOM", label_stylesheet, content_font, self, 25, 300)
         change = Label("Change Hotkey: ctrl + alt + c", label_stylesheet, content_font, self, 25, 400)
         check = Label("See Hotkey: ctrl + alt + b", label_stylesheet, content_font, self, 350, 300)
         about = Label("About us: ctrl + alt + u", label_stylesheet, content_font, self, 350, 400)
-
-        # Initialize mouse and keyboard listeners
-        # listener = daemon.Daemon()  # TODO: GET CUSTOM HOTKEY
 
         self.show()
 
     def custom_key_window(self):
         """Go to the custom key window"""
-        self.hidden = True
         self.secondary_window = ChangeHotKey(self)
 
     def get_custom_key(self):
@@ -155,19 +165,28 @@ class MainWindow(QMainWindow):
     def set_custom_key(self, value):
         """ Set the custom key"""
         self.custom_key = value
-        self.hotkeys["custom"] = self.custom_key    # TODO: LINK BLOCK FUNCTION TO HOTKEY
         self.__apply_hotkey()
+
+    def about_us_window(self):
+        self.secondary_window = AboutUs(self)
+
+    def check_key_window(self):
+        self.secondary_window = SeeHotkey(self)
 
     def __apply_hotkey(self):
         """Make all the changes for the new hotkey"""
-        pass    # TODO: IMPLEMENT METHOD
+        self.custom_key_hotkey.setKey(QKeySequence(self.custom_key))
+
+    def safemode(self):
+        self.secondary_window = SafeMode(self)
+        self.hide()
 
 
 class ChangeHotKey(QWidget):
     """Change the user's Hotkey"""
     def __init__(self, main: MainWindow):
         super().__init__()
-        self.new_key = ""      # New hotkey that will be written in the model
+        self.new_key = ""           # New hotkey that will be written in the model
         self.key_value = 0          # Value for the new key sequence
         self.key_string = ""        # Key string for the key_label
         self.key_label = None       # Label to show the hotkey
@@ -255,21 +274,31 @@ class ChangeHotKey(QWidget):
                                      None)
                 self.dialog.show()
             elif key_val == Qt.Key_Return and self.new_key != "":
-                # Set the new hotkey
-                # Write the hotkey to the model
-                file_dao = HD.HotkeyDAO(filepath)
-                file_dao.write_file(self.new_key)
-                # Change the hotkey in the main window
-                self.main.set_custom_key(self.key_value)
-                self.close()
-                self.main.show()
+                # Check if the hotkey is not one of the default ones
+                if self.key_value != check_key and self.key_value != about_us and self.key_value != change_key:
+                    # Set the new hotkey
+                    # Write the hotkey to the model
+                    file_dao = HD.HotkeyDAO(filepath)
+                    file_dao.write_file(self.new_key)
+                    # Change the hotkey in the main window
+                    self.main.set_custom_key(self.key_value)
+                    self.close()
+                    self.main.show()
+                else:
+                    self.dialog = Dialog("Error",
+                                         "The hotkey can't be one of the default hotkeys",
+                                         "Close",
+                                         None)
+                    self.dialog.show()
+                    pass   # TODO: DELETE THE KEY AND DELETE THE KEY LABEL
+
             elif key_val == Qt.Key_Escape:
                 # Return to the main window
                 self.main.show()
                 self.close()
             else:
                 # Append the pressed key to the hotkey
-                if not key.isAutoRepeat() and str(key_val) not in self.new_key:
+                if not key.isAutoRepeat() and str(key_val) not in self.new_key.split(","):
                     if self.modifiers.get(key_val) is not None:
                         if str(self.modifiers.get(key_val)) not in self.new_key:
                             self.__append_to_new_key(str(self.modifiers[key_val]))
@@ -298,3 +327,41 @@ class ChangeHotKey(QWidget):
                                  None)
             self.dialog.show()
 
+
+class SeeHotkey(QWidget):
+    """Show hotkey window"""
+    def __init__(self, main: MainWindow):
+        super().__init__()
+        self.main = main
+        self.__init_ui()
+
+    def __init_ui(self):
+        """"Initialize the window's UI"""
+        pass  # TODO: Make UI
+        self.show()
+
+
+class AboutUs(QWidget):
+    """About us window"""
+    def __init__(self, main: MainWindow):
+        super().__init__()
+        self.main = main
+        self.__init_ui()
+
+    def __init_ui(self):
+        """Initialize the window's UI"""
+        pass    # TODO: MAKE UI
+        self.show()
+
+
+class SafeMode(QWidget):
+    """"Safemode active window"""
+    def __init__(self,  main: MainWindow):
+        super().__init__()
+        self.main = main
+        self.__init_ui()
+
+    def __init_ui(self):
+        """Initialize the UI of the window"""
+        pass  # TODO: MAKE UI
+        self.show()
