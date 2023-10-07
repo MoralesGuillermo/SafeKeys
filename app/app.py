@@ -4,6 +4,10 @@ import sys
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QLineEdit, QLabel, QDialog, QShortcut
 from PyQt5.QtGui import QFont, QFontDatabase, QKeyEvent, QKeySequence
 from PyQt5.QtCore import Qt
+from pynput.mouse import Controller as MController
+from pynput.mouse import Listener as MListener
+from pynput.keyboard import Key as pyKey
+import keyboard
 
 import HotkeyDAO as HD
 
@@ -178,7 +182,7 @@ class MainWindow(QMainWindow):
         self.custom_key_hotkey.setKey(QKeySequence(self.custom_key))
 
     def safemode(self):
-        self.secondary_window = SafeMode(self)
+        self.secondary_window = SafeMode(self, self.custom_key)
         self.hide()
 
 
@@ -356,12 +360,57 @@ class AboutUs(QWidget):
 
 class SafeMode(QWidget):
     """"Safemode active window"""
-    def __init__(self,  main: MainWindow):
+    def __init__(self,  main: MainWindow, unlock_key):
         super().__init__()
         self.main = main
+        self.setWindowTitle("Safekeys - Safemode")
+        self.setFixedSize(700, 400)
+        # Activate hotkey to deactivate safemode
+        self.unlock = QShortcut(QKeySequence(unlock_key), self)
+        self.unlock.activated.connect(self.unlock_computer)
+        # TODO: CHECK QCursor: Mouse controller
+        # Block keys
+        keyboard.block_key("esc")
+        keyboard.block_key("f4")
+        keyboard.block_key("tab")
+        self.secondary = QWidget()
         self.__init_ui()
 
     def __init_ui(self):
         """Initialize the UI of the window"""
-        pass  # TODO: MAKE UI
+        # Styles
+        window_stylesheet = {
+            "background-color": "#361d32",
+        }
+        font_style = {
+            "color": "#f55951",
+        }
+        label_stylesheet = QtStyleSheet.to_string(font_style)
+        font = Font("Roboto-Regular", 24, True, 200)
+        light_font = Font("Roboto-Regular", 14, True, 150)
+        # Labels
+        title = Label("Safemode active",
+                      label_stylesheet,
+                      font,
+                      self,
+                      220,
+                      175)
+        # Set the stylesheet
+        self.setStyleSheet(QtStyleSheet.to_string(window_stylesheet))
         self.show()
+
+    def unlock_computer(self):
+        """Deactivate safemode"""
+        # Unblock keys
+        keyboard.unblock_key("esc")
+        keyboard.unblock_key("f4")
+        keyboard.unblock_key("tab")
+        self.hide()
+        self.main.show()
+        # Delete the instance
+        del self
+
+
+
+
+
