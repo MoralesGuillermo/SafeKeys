@@ -2,8 +2,8 @@
 import os
 import sys
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QLineEdit, QLabel, QDialog, QShortcut
-from PyQt5.QtGui import QFont, QFontDatabase, QKeyEvent, QKeySequence
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont, QFontDatabase, QKeyEvent, QKeySequence, QMouseEvent
+from PyQt5.QtCore import Qt, QPoint
 from pynput.mouse import Controller as MController
 from pynput.mouse import Listener as MListener
 from pynput.keyboard import Key as pyKey
@@ -368,13 +368,18 @@ class SafeMode(QWidget):
         # Activate hotkey to deactivate safemode
         self.unlock = QShortcut(QKeySequence(unlock_key), self)
         self.unlock.activated.connect(self.unlock_computer)
-        # TODO: CHECK QCursor: Mouse controller
         # Block keys
         keyboard.block_key("esc")
         keyboard.block_key("f4")
         keyboard.block_key("tab")
         self.secondary = QWidget()
+        self.setMouseTracking(True)     # Enable mouse tracking
         self.__init_ui()
+        # Move cursor to the widget window (Pyqt's mouse event listener)
+        global_pos = self.mapToGlobal(QPoint(0, 0))
+        self.coordinates = (global_pos.x()+350, global_pos.y()+200)
+        mouse = MController()
+        mouse.position = self.coordinates
 
     def __init_ui(self):
         """Initialize the UI of the window"""
@@ -398,6 +403,14 @@ class SafeMode(QWidget):
         # Set the stylesheet
         self.setStyleSheet(QtStyleSheet.to_string(window_stylesheet))
         self.show()
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        """Handle mouse movements. Return mouse to its position
+        when moved
+        """
+        print("EJECUCIÓN")
+        mouse = MController()
+        mouse.position = self.coordinates
 
     def unlock_computer(self):
         """Deactivate safemode"""
