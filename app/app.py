@@ -1,12 +1,9 @@
 """App class for the logic of the app"""
 import os
-import sys
-from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QLineEdit, QLabel, QDialog, QShortcut
+from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QLabel, QDialog, QShortcut
 from PyQt5.QtGui import QFont, QFontDatabase, QKeyEvent, QKeySequence, QMouseEvent
 from PyQt5.QtCore import Qt, QPoint
 from pynput.mouse import Controller as MController
-from pynput.mouse import Listener as MListener
-from pynput.keyboard import Key as pyKey
 import keyboard
 
 import HotkeyDAO as HD
@@ -102,9 +99,9 @@ class MainWindow(QMainWindow):
         global change_key, about_us, check_key
         super().__init__()
         self.secondary_window = None
-        file_dao = HD.HotkeyDAO(filepath)
-        file_dao.read_file()
-        self.custom_key = file_dao.key
+        self.file_dao = HD.HotkeyDAO(filepath)
+        self.file_dao.read_file()
+        self.custom_key = self.file_dao.key
         self.hidden = False
         self.hotkey_label = None
         if self.custom_key is None:
@@ -175,7 +172,7 @@ class MainWindow(QMainWindow):
         self.secondary_window = AboutUs(self)
 
     def check_key_window(self):
-        self.secondary_window = SeeHotkey(self)
+        self.secondary_window = SeeHotkey(self, self.file_dao.read_raw())
 
     def __apply_hotkey(self):
         """Make all the changes for the new hotkey"""
@@ -334,15 +331,23 @@ class ChangeHotKey(QWidget):
 
 class SeeHotkey(QWidget):
     """Show hotkey window"""
-    def __init__(self, main: MainWindow):
+    def __init__(self, main: MainWindow, numbers: str) -> None:
         super().__init__()
         self.main = main
+        self.hotkey_numbers = numbers
         self.__init_ui()
 
     def __init_ui(self):
         """"Initialize the window's UI"""
-        pass  # TODO: Make UI
-        self.show()
+        # Styles
+        window_stylesheet = {
+            "background-color": "#361d32",
+        }
+        font_style = {
+            "color": "#f55951",
+        }
+        self.setStyleSheet(QtStyleSheet.to_string(window_stylesheet))
+        self.show()     # TODO: SHOW THE CURRENT HOTKEY
 
 
 class AboutUs(QWidget):
@@ -350,12 +355,51 @@ class AboutUs(QWidget):
     def __init__(self, main: MainWindow):
         super().__init__()
         self.main = main
+        self.set_window_size(700, 500)
+        self.window_stylesheet = self.initialize_window_stylesheet({"background-color": "#361d32"})
+        self.font_color = self.__initialize_font_color({"color": "#f55951"})
+        self.font = Font("Roboto-Regular", 16, True, 200)
         self.__init_ui()
 
+    def set_window_size(self, x, y):
+        self.setFixedSize(x, y)
+
+    def initialize_window_stylesheet(self, window_stylesheet: dict):
+        return self.__initialize(window_stylesheet)
+
+    def __initialize_font_color(self, color_stylesheet):
+        return self.__initialize(color_stylesheet)
+
+    @staticmethod
+    def __initialize(stylesheet):
+        return QtStyleSheet.to_string(stylesheet)
+
     def __init_ui(self):
-        """Initialize the window's UI"""
-        pass    # TODO: MAKE UI
+        self.setStyleSheet(self.window_stylesheet)
+        self.add_labels_to_window()
         self.show()
+
+    def add_labels_to_window(self):
+        about_us_label = Label("Safekeys is a private project made by Guillermo M. Morales",
+                               self.font_color,
+                               self.font,
+                               self,
+                               50,
+                               200)
+        github_label = Label('Github: <a  style="color:white" href="https://github.com/MoralesGuillermo">'
+                             'https://github.com/MoralesGuillermo</a>',
+                             self.font_color,
+                             self.font,
+                             self,
+                             110,
+                             250)
+        self.__permit_open_external_links(github_label)
+
+    @staticmethod
+    def __permit_open_external_links(label: Label):
+        label.setOpenExternalLinks(True)
+
+
 
 
 class SafeMode(QWidget):
@@ -408,7 +452,6 @@ class SafeMode(QWidget):
         """Handle mouse movements. Return mouse to its position
         when moved
         """
-        print("EJECUCIÓN")
         mouse = MController()
         mouse.position = self.coordinates
 
@@ -422,8 +465,3 @@ class SafeMode(QWidget):
         self.main.show()
         # Delete the instance
         del self
-
-
-
-
-
