@@ -36,4 +36,3 @@ class FileManager:
             return True
         except FileNotFoundError:
             raise Exception(f"Given file {path} couldn't be modified. FileNotFound")
-
