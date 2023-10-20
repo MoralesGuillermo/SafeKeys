@@ -13,9 +13,9 @@ import HotkeyDAO as HD
 filepath = os.path.join(os.getcwd(), "elem", "hk.csv")
 
 # Default Key Sequence
-change_key = Qt.CTRL+Qt.ALT+Qt.Key_C
-about_us = Qt.CTRL + Qt.ALT + Qt.Key_U
-check_key = Qt.CTRL + Qt.ALT + Qt.Key_B
+CHANGE_KEY = Qt.CTRL + Qt.ALT + Qt.Key_C
+ABOUT_US_KEY = Qt.CTRL + Qt.ALT + Qt.Key_U
+CHECK_KEY = Qt.CTRL + Qt.ALT + Qt.Key_B
 
 
 class Font(QFont):
@@ -96,7 +96,6 @@ class Label(QLabel):
 
 class MainWindow(QMainWindow):
     def __init__(self):
-        global change_key, about_us, check_key
         super().__init__()
         self.secondary_window = None
         self.file_dao = HD.HotkeyDAO(filepath)
@@ -109,23 +108,32 @@ class MainWindow(QMainWindow):
             self.custom_key = str()
             self.custom_key_window()
 
-        # Activate shortcuts
-        self.change_key_hotkey = QShortcut(QKeySequence(change_key), self)
-        self.change_key_hotkey.activated.connect(self.custom_key_window)
-
-        self.about_us_hotkey = QShortcut(QKeySequence(about_us), self)
-        self.about_us_hotkey.activated.connect(self.about_us_window)
-
-        self.check_key_hotkey = QShortcut(QKeySequence(check_key), self)
-        self.check_key_hotkey.activated.connect(self.check_key_window)
-
-        self.custom_key_hotkey = QShortcut(QKeySequence(self.custom_key), self)
-        self.custom_key_hotkey.activated.connect(self.safemode)
-        # Initialize the UI
+        self.__activate_shortcuts()
         self.__init_ui()
         if self.hidden:
             self.hide()
             self.hidden = False
+
+    def __activate_shortcuts(self):
+        self.__generate_all_keys()
+        self.__activate_all_keys()
+
+    def __generate_all_keys(self):
+        def generate(hotkey):
+            return QShortcut(QKeySequence(hotkey), self)
+        global CHANGE_KEY, ABOUT_US_KEY, CHECK_KEY
+        self.change_key_hotkey = generate(CHANGE_KEY)
+        self.about_us_hotkey = generate(ABOUT_US_KEY)
+        self.check_key_hotkey = generate(CHECK_KEY)
+        self.custom_key_hotkey = generate(self.custom_key)
+
+    def __activate_all_keys(self):
+        def activate(hotkey: QShortcut, event):
+            hotkey.activated.connect(event)
+        activate(self.change_key_hotkey, self.custom_key_window)
+        activate(self.about_us_hotkey, self.about_us_window)
+        activate(self.check_key_hotkey, self.check_key_window)
+        activate(self.custom_key_hotkey, self.safemode)
 
     def __init_ui(self):
         """Main window's UI"""
@@ -160,11 +168,9 @@ class MainWindow(QMainWindow):
         self.secondary_window = ChangeHotKey(self)
 
     def get_custom_key(self):
-        """Return the current hotkey"""
         return self.custom_key
 
     def set_custom_key(self, value):
-        """ Set the custom key"""
         self.custom_key = value
         self.__apply_hotkey()
 
@@ -276,7 +282,7 @@ class ChangeHotKey(QWidget):
                 self.dialog.show()
             elif key_val == Qt.Key_Return and self.new_key != "":
                 # Check if the hotkey is not one of the default ones
-                if self.key_value != check_key and self.key_value != about_us and self.key_value != change_key:
+                if self.key_value != CHECK_KEY and self.key_value != ABOUT_US_KEY and self.key_value != CHANGE_KEY:
                     # Set the new hotkey
                     # Write the hotkey to the model
                     file_dao = HD.HotkeyDAO(filepath)
@@ -398,8 +404,6 @@ class AboutUs(QWidget):
     @staticmethod
     def __permit_open_external_links(label: Label):
         label.setOpenExternalLinks(True)
-
-
 
 
 class SafeMode(QWidget):
