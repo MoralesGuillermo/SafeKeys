@@ -98,21 +98,28 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.secondary_window = None
-        self.file_dao = HD.HotkeyDAO(filepath)
-        self.file_dao.read_file()
-        self.custom_key = self.file_dao.key
         self.hidden = False
         self.hotkey_label = None
-        if self.custom_key is None:
-            self.hidden = True
-            self.custom_key = str()
-            self.custom_key_window()
-
+        self.custom_key = str()
+        self.file_dao = HD.HotkeyDAO(filepath)
+        self.__read_dao_model()
+        self.__read_custom_key()
         self.__activate_shortcuts()
         self.__init_ui()
-        if self.hidden:
-            self.hide()
-            self.hidden = False
+        self.hide_if_hidden()
+
+    def __read_dao_model(self):
+        self.file_dao.read_file()
+
+    def __read_custom_key(self):
+        if self.file_dao.key is not None:
+            return self.file_dao.key
+        self.custom_key = str()
+        self.custom_key_window()
+        self.change_hidden_status()
+
+    def __change_hidden_status(self):
+        self.hidden = not self.hidden
 
     def __activate_shortcuts(self):
         self.__generate_all_keys()
@@ -162,6 +169,11 @@ class MainWindow(QMainWindow):
         about = Label("About us: ctrl + alt + u", label_stylesheet, content_font, self, 350, 400)
 
         self.show()
+
+    def hide_if_hidden(self):
+        if self.hidden:
+            self.hide()
+            self.__change_hidden_status()
 
     def custom_key_window(self):
         """Go to the custom key window"""
