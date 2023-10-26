@@ -8,7 +8,6 @@ import keyboard
 
 import HotkeyDAO as HD
 
-
 # Color palette: https://colors.muz.li/palette/361d32/543c52/f55951/edd2cb/f1e8e6
 filepath = os.path.join(os.getcwd(), "elem", "hk.csv")
 
@@ -16,6 +15,20 @@ filepath = os.path.join(os.getcwd(), "elem", "hk.csv")
 CHANGE_KEY = Qt.CTRL + Qt.ALT + Qt.Key_C
 ABOUT_US_KEY = Qt.CTRL + Qt.ALT + Qt.Key_U
 CHECK_KEY = Qt.CTRL + Qt.ALT + Qt.Key_B
+
+# Key Map
+key_value_map = dict()
+for k, v in vars(Qt).items():
+    if isinstance(v, Qt.Key):
+        key_value_map[int(v)] = k.partition("_")[2]
+
+modifiers = {
+    Qt.Key_Control: Qt.CTRL,
+    Qt.Key_Shift: Qt.SHIFT,
+    Qt.Key_Alt: Qt.ALT,
+}
+
+print(modifiers)
 
 
 class Font(QFont):
@@ -35,6 +48,7 @@ class Font(QFont):
 
 class QtStyleSheet:
     """Representation for a CSS Stylesheet"""
+
     @classmethod
     def to_string(cls, sheet_dictionary: dict) -> str:
         """Return a string representation of the stylesheet.The parameter name
@@ -128,6 +142,7 @@ class MainWindow(QMainWindow):
     def __generate_all_keys(self):
         def generate(hotkey):
             return QShortcut(QKeySequence(hotkey), self)
+
         global CHANGE_KEY, ABOUT_US_KEY, CHECK_KEY
         self.change_key_hotkey = generate(CHANGE_KEY)
         self.about_us_hotkey = generate(ABOUT_US_KEY)
@@ -137,6 +152,7 @@ class MainWindow(QMainWindow):
     def __activate_all_keys(self):
         def activate(hotkey: QShortcut, event):
             hotkey.activated.connect(event)
+
         activate(self.change_key_hotkey, self.custom_key_window)
         activate(self.about_us_hotkey, self.about_us_window)
         activate(self.check_key_hotkey, self.check_key_window)
@@ -203,15 +219,16 @@ class MainWindow(QMainWindow):
 
 class ChangeHotKey(QWidget):
     """Change the user's Hotkey"""
+
     def __init__(self, main: MainWindow):
         super().__init__()
-        self.new_key = ""           # New hotkey that will be written in the model
-        self.key_value = 0          # Value for the new key sequence
-        self.key_string = ""        # Key string for the key_label
-        self.key_label = None       # Label to show the hotkey
-        self.dialog = None          # Dialog window of the window
-        self.main = main            # Main window
-        self.key_map = {}           # Key's values and names dictionary
+        self.new_key = ""  # New hotkey that will be written in the model
+        self.key_value = 0  # Value for the new key sequence
+        self.key_string = ""  # Key string for the key_label
+        self.key_label = None  # Label to show the hotkey
+        self.dialog = None  # Dialog window of the window
+        self.main = main  # Main window
+        self.key_map = {}  # Key's values and names dictionary
         for keyname, value in vars(Qt).items():
             if isinstance(value, Qt.Key):
                 self.key_map[value] = keyname.partition("_")[2]
@@ -220,8 +237,8 @@ class ChangeHotKey(QWidget):
             Qt.Key_Shift: Qt.SHIFT,
             Qt.Key_Alt: Qt.ALT,
         }
-        self.key_vals = []       # Already pressed keys
-        self.__init_ui()        # Key listener
+        self.key_vals = []  # Already pressed keys
+        self.__init_ui()  # Key listener
 
     def __init_ui(self):
         """Initialize the UI of the window"""
@@ -276,7 +293,7 @@ class ChangeHotKey(QWidget):
                 if self.new_key != "":
                     # Delete the last pressed key
                     delete = self.new_key.split(",")[-1]
-                    self.key_value -= int(delete)   # Decrease by the last pressed key amount
+                    self.key_value -= int(delete)  # Decrease by the last pressed key amount
                     # Remove the last key pressed from the new_key and the key_string
                     self.new_key = ",".join(self.new_key.split(",")[:-1])
                     self.key_string = "+".join(self.key_string.split("+")[:-1])
@@ -298,6 +315,7 @@ class ChangeHotKey(QWidget):
                     # Set the new hotkey
                     # Write the hotkey to the model
                     file_dao = HD.HotkeyDAO(filepath)
+                    print(self.new_key)
                     file_dao.write_file(self.new_key)
                     # Change the hotkey in the main window
                     self.main.set_custom_key(self.key_value)
@@ -309,8 +327,11 @@ class ChangeHotKey(QWidget):
                                          "Close",
                                          None)
                     self.dialog.show()
-                    pass   # TODO: DELETE THE KEY AND DELETE THE KEY LABEL
-
+                    self.key_label.clear()
+                    self.key_label.show()
+                    self.new_key = str()
+                    self.key_string = str()
+                    self.key_value = 0
             elif key_val == Qt.Key_Escape:
                 # Return to the main window
                 self.main.show()
@@ -321,6 +342,7 @@ class ChangeHotKey(QWidget):
                     if self.modifiers.get(key_val) is not None:
                         if str(self.modifiers.get(key_val)) not in self.new_key:
                             self.__append_to_new_key(str(self.modifiers[key_val]))
+                            print(self.new_key)
                             self.key_value += self.modifiers[key_val]
                             self.__append_to_key_string(self.key_map[key_val])
                     else:
@@ -349,11 +371,41 @@ class ChangeHotKey(QWidget):
 
 class SeeHotkey(QWidget):
     """Show hotkey window"""
-    def __init__(self, main: MainWindow, numbers: str) -> None:
+
+    def __init__(self, main: MainWindow, hotkey_numbers: str) -> None:
         super().__init__()
         self.main = main
-        self.hotkey_numbers = numbers
+        self.hotkey_numbers = hotkey_numbers
+        self.key_text = self.__unmap_key()
         self.__init_ui()
+
+    def __unmap_key(self):
+        global key_value_map
+        key_text = str()
+        key = str()
+        for key_value in self.hotkey_numbers.split(","):
+            if self.__check_if_modifier(int(key_value)):
+                normal_value = self.__get_key_normal_value(modifiers, int(key_value))
+                key = key_value_map[normal_value]
+            else:
+                key = key_value_map[int(key_value)]
+            key_text += f"{key}+"
+        key_text = key_text[:-1]    # Strip extra + sign at the end
+        return key_text
+
+    @staticmethod
+    def __check_if_modifier(key_val: int) -> bool:
+        global modifiers
+        try:
+            check = list(modifiers.keys())[list(modifiers.values()).index(key_val)]
+            return check is not None
+        except ValueError:
+            return False        # Value wasn't found
+
+    @staticmethod
+    def __get_key_normal_value(dictionary, key_value: int) -> int:
+        value = list(dictionary.keys())[list(dictionary.values()).index(key_value)]
+        return value
 
     def __init_ui(self):
         """"Initialize the window's UI"""
@@ -364,8 +416,16 @@ class SeeHotkey(QWidget):
         font_style = {
             "color": "#f55951",
         }
+        label_stylesheet = QtStyleSheet.to_string(font_style)
+        font = Font("Roboto-Regular", 16, True, 200)
+        key = Label(f"Current hotkey: {self.key_text}",
+                    label_stylesheet,
+                    font,
+                    self,
+                    220,
+                    175)
         self.setStyleSheet(QtStyleSheet.to_string(window_stylesheet))
-        self.show()     # TODO: SHOW THE CURRENT HOTKEY
+        self.show()
 
 
 class AboutUs(QWidget):
@@ -420,7 +480,8 @@ class AboutUs(QWidget):
 
 class SafeMode(QWidget):
     """"Safemode active window"""
-    def __init__(self,  main: MainWindow, unlock_key):
+
+    def __init__(self, main: MainWindow, unlock_key):
         super().__init__()
         self.main = main
         self.setWindowTitle("Safekeys - Safemode")
@@ -433,11 +494,11 @@ class SafeMode(QWidget):
         keyboard.block_key("f4")
         keyboard.block_key("tab")
         self.secondary = QWidget()
-        self.setMouseTracking(True)     # Enable mouse tracking
+        self.setMouseTracking(True)  # Enable mouse tracking
         self.__init_ui()
         # Move cursor to the widget window (Pyqt's mouse event listener)
         global_pos = self.mapToGlobal(QPoint(0, 0))
-        self.coordinates = (global_pos.x()+350, global_pos.y()+200)
+        self.coordinates = (global_pos.x() + 350, global_pos.y() + 200)
         mouse = MController()
         mouse.position = self.coordinates
 
